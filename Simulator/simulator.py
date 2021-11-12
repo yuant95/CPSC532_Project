@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 l = [5.0, 5.0]
-
+# TODO: validate the correctness of this function
 class Simulator:
     def __init__(self, initialState):
         self.currentState = initialState
@@ -36,6 +36,7 @@ class State:
         "mass": np.array([1, 1]),
         "ks": np.array([10, 10]),
         "frictionMu": np.array([0.1, 0.1]),
+        "ls": [5.0, 5.0],
     }
     GRAVITY = 10
     def __init__(self, position, velocity, acceleration, parameters=PARAMS):
@@ -71,6 +72,9 @@ class State:
 
         absFrictionF = np.matmul(np.diag(mu * self.GRAVITY), ms)
         frictionF = np.zeros(2)
+
+        # Get the static friction force
+        # NOTE: not sure whether there is better way to do this
         if abs(self.vel[0]) < 0.001:
             self.vel[0] = 0.0
             frictionF[0] = min(absFrictionF[0], abs(F[0])) * -np.sign(F[0])
@@ -87,10 +91,22 @@ class State:
 
         return acc
 
-initialState = State([0.0,0.0], [0.0,0.0], [0.0,0.0])
+    #TODO: Get sensor readings (stochastic readings) based on state. 
+    def get_sensor_readings(self):
+        return None
+
+    #TODO: Validate whether the state satisfy constraints
+    def is_valid(self):
+        # 1. pos1min < pos1 < pos1Max
+        #    pos1Min and pos1Max denpends on l1 and l2, and constraint of the spring. 
+        # 2. pos1 < pos2
+
+        return True
+
+initialState = State([3.0,3.0], [0.0,0.0], [0.0,0.0])
 simulator = Simulator(initialState)
 
-T = 10
+T = 20
 dt = 0.1
 u = np.zeros((int(T/dt), 2))
 D = np.zeros((int(T/dt), 2))
