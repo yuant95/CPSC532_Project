@@ -31,6 +31,7 @@ import pandas as pd
 
 from constants import *
 import os
+from sklearn.preprocessing import MinMaxScaler
 
 matplotlib.use("Agg")  # noqa: E402
 
@@ -74,7 +75,7 @@ def model(X, Y, D_H, D_Y):
     # observe data
     with numpyro.plate("data", N):
         # note we use to_event(1) because each observation has shape (1,)
-        numpyro.sample("Y", dist.Normal(z3, sigma_obs).to_event(1), obs=Y)
+        r = numpyro.sample("Y", dist.Normal(z3, sigma_obs).to_event(1), obs=Y)
 
 
 # helper function for HMC inference
@@ -101,45 +102,74 @@ def predict(model, rng_key, samples, X, D_H, D_Y):
     model_trace = handlers.trace(model).get_trace(X=X, Y=None, D_H=D_H, D_Y = D_Y)
     return model_trace["Y"]["value"]
 
-
-# create artificial regression dataset
-def get_data(N=50, D_X=3, sigma_obs=0.05, N_test=500):
-    D_Y = 1  # create 1d outputs
-    np.random.seed(0)
-    X = jnp.linspace(-1, 1, N)
-    X = jnp.power(X[:, np.newaxis], jnp.arange(D_X))
-    W = 0.5 * np.random.randn(D_X)
-    Y = jnp.dot(X, W) + 0.5 * jnp.power(0.5 + X[:, 1], 2.0) * jnp.sin(4.0 * X[:, 1])
-    Y += sigma_obs * np.random.randn(N)
-    Y = Y[:, np.newaxis]
-    Y -= jnp.mean(Y)
-    Y /= jnp.std(Y)
-
-    assert X.shape == (N, D_X)
-    assert Y.shape == (N, D_Y)
-
-    X_test = jnp.linspace(-1.3, 1.3, N_test)
-    X_test = jnp.power(X_test[:, np.newaxis], jnp.arange(D_X))
-
-    return X, Y, X_test
-
+# Note: Current it's using test 1 as training, and test 2 as test data
+# Only using ROBOT_POSE_DATA_ITEMS and CONTROLLER_DATA_ITEMS
 def read_data(N=100, N_test=10):
+    # To get rid of some noisy set up phase data
+    offset = 200
+    N += offset
     finalizedDataPath = os.path.join(DRIVE_TEST_1_FOLDER, "finalizedData2.csv")
+    testDataPath = os.path.join(DRIVE_TEST_2_FOLDER, "finalizedData.csv")
     data = pd.read_csv(finalizedDataPath)
+    testData = pd.read_csv(testDataPath)
 
-    X = jnp.array(data.loc[0:N-1, STATE_ITEMS+CONTROLLER_DATA_ITEMS].to_numpy())
-    Y = jnp.array(data.loc[1:N,STATE_ITEMS].to_numpy())
+    # Normalize the data
+    scaler = MinMaxScaler()
 
-    X_test = jnp.array(data.loc[N+1:N+N_test, STATE_ITEMS+CONTROLLER_DATA_ITEMS].to_numpy())
+    data[data.columns] = scaler.fit_transform(data)
+    testData[testData.columns] = scaler.fit_transform(testData)
 
-    return X, Y, X_test
+    X = jnp.array(data.loc[offset:N-1, ROBOT_POSE_DATA_ITEMS+CONTROLLER_DATA_ITEMS].to_numpy())
+    Y = jnp.array(data.loc[offset+1:N,ROBOT_POSE_DATA_ITEMS].to_numpy())
 
+    X_test = jnp.array(testData.loc[offset:offset+N_test, ROBOT_POSE_DATA_ITEMS+CONTROLLER_DATA_ITEMS].to_numpy())
+    Y_test_truth = jnp.array(testData.loc[offset+1:offset+N_test+1, ROBOT_POSE_DATA_ITEMS].to_numpy())
 
+    return X, Y, X_test, Y_test_truth
+
+def plot_result(X,Y,X_test,predictions, xDim, yDim, prefix = ""):
+    xName = (ROBOT_POSE_DATA_ITEMS+CONTROLLER_DATA_ITEMS)[xDim]
+    yName = ROBOT_POSE_DATA_ITEMS[yDim]
+
+    mean_prediction = jnp.mean(predictions, axis=0)
+    percentiles = np.percentile(predictions, [5.0, 95.0], axis=0)
+
+    # make plots
+    plt.clf()
+    fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
+
+    # plot training data
+    ax.plot(X[:, xDim], Y[:, yDim], "kx")
+    # plot 90% confidence level of predictions
+    # ax.fill_between(
+    #     X_test[:, xDim], percentiles[0, :, yDim], percentiles[1, :, yDim], color="lightblue"
+    # )
+    # plot mean prediction
+    ax.plot(X_test[:, xDim], mean_prediction[:,yDim], "bo")#, ls="solid", lw=2.0)
+    ax.set(xlabel="X_{}".format(xName), ylabel="Y_{}".format(yName), title="Mean predictions with 90% CI")
+
+    plt.savefig("{}_bnn_plot_x{}_y{}.png".format(prefix, xName, yName))
+
+    plt.close(fig)
+    plt.clf()
+
+    # No prediction
+    fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
+
+    # plot training data
+    ax.plot(X[:, xDim], Y[:, yDim], "kx")
+
+    ax.set(xlabel="X_{}".format(xName), ylabel="Y_{}".format(yName), title="{} Mean predictions with 90% CI".format(prefix))
+
+    plt.savefig("{}_data_x{}_y{}.png".format(prefix, xName, yName))
+    plt.close(fig)
 
 def main(args):
-    D_Y = 15
-    N, D_X, D_H = args.num_data, 17, args.num_hidden
-    X, Y, X_test = read_data(N, 10)
+    D_Y = 4
+    N_test = 1000
+    N, D_X, D_H = args.num_data, D_Y+2, args.num_hidden
+    
+    X, Y, X_test, Y_test_truth = read_data(N, N_test)
 
     # do inference
     rng_key, rng_key_predict = random.split(random.PRNGKey(0))
@@ -153,26 +183,33 @@ def main(args):
     predictions = vmap(
         lambda samples, rng_key: predict(model, rng_key, samples, X_test, D_H, D_Y)
     )(*vmap_args)
-    # predictions = predictions[..., 0]
 
-    # compute mean prediction and confidence interval around median
     mean_prediction = jnp.mean(predictions, axis=0)
-    percentiles = np.percentile(predictions, [5.0, 95.0], axis=0)
 
-    # make plots
-    fig, ax = plt.subplots(figsize=(8, 6), constrained_layout=True)
+    with open("mean_prediction.json", "w") as f:
+        import json
+        json.dump(np.array(mean_prediction).tolist(), f)
 
-    # plot training data
-    ax.plot(X[:, 1], Y[:, 0], "kx")
-    # plot 90% confidence level of predictions
-    ax.fill_between(
-        X_test[:, 1], percentiles[0, :, 0], percentiles[1, :, 0], color="lightblue"
-    )
-    # plot mean prediction
-    ax.plot(X_test[:, 1], mean_prediction, "blue", ls="solid", lw=2.0)
-    ax.set(xlabel="X", ylabel="Y", title="Mean predictions with 90% CI")
+    with open("groundTruth.json", "w") as f:
+        json.dump(np.array(Y_test_truth).tolist(), f)
 
-    plt.savefig("bnn_plot.pdf")
+    for i in range(D_X):
+        for j in range(D_Y):
+            prefix = "{}data_{}hidden_".format(N, D_H)
+            plot_result(X,Y,X_test,predictions,i, j, prefix)
+
+    # Plot trajectory comparison figure
+    fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
+
+    # plot ground truth
+    ax.plot(Y_test_truth[:,-4], Y_test_truth[:,-3], "kx")
+
+    # plot prediction
+    ax.plot(mean_prediction[:,-4], mean_prediction[:,-3], "bo")
+
+    ax.set(xlabel="X_{}".format("pose.position.x"), ylabel="Y_{}".format("pose.position.y"), title="Mean predictions with 90% CI")
+
+    plt.savefig("{}_comparison.png".format(prefix))
 
 
 if __name__ == "__main__":
@@ -181,8 +218,8 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--num-samples", nargs="?", default=2000, type=int)
     parser.add_argument("--num-warmup", nargs="?", default=1000, type=int)
     parser.add_argument("--num-chains", nargs="?", default=1, type=int)
-    parser.add_argument("--num-data", nargs="?", default=100, type=int)
-    parser.add_argument("--num-hidden", nargs="?", default=5, type=int)
+    parser.add_argument("--num-data", nargs="?", default=4000, type=int)
+    parser.add_argument("--num-hidden", nargs="?", default=7, type=int)
     parser.add_argument("--device", default="cpu", type=str, help='use "cpu" or "gpu".')
     args = parser.parse_args()
 

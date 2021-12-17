@@ -17,6 +17,7 @@ WHEEL_DATA_ITEMS = ["fwLeftPos","fwRightPos"]
 ROBOT_POSE_DATA_ITEMS = ["pose.position.x","pose.position.y","pose.orientation.z","pose.orientation.w"]
 
 STATE_ITEMS = IMU_DATA_ITEMS + WHEEL_DATA_ITEMS + ROBOT_POSE_DATA_ITEMS
+ALL_DATA = [CONTROLLER_DATA_NAME, IMU_DATA_NAME, WHEEL_DATA_NAME, ROBOT_POSE_DATA_NAME]
 
 dataPackage = {
     0: {
@@ -36,5 +37,3 @@ dataPackage = {
             "dataItems": ROBOT_POSE_DATA_ITEMS
     }
 }
-
-ALL_DATA = [CONTROLLER_DATA_NAME, IMU_DATA_NAME, WHEEL_DATA_NAME, ROBOT_POSE_DATA_NAME]
