@@ -3,7 +3,10 @@ import argparse, logging, time
 import os, torch
 import pyro 
 import utils
+import LSTM
 import torch.nn as nn
+from matplotlib import pyplot
+
 
 from os.path import exists
 from pyro.optim import ClippedAdam
@@ -22,6 +25,8 @@ from pyro.infer import (
 )
 from pyro.optim import ClippedAdam
 
+
+dir_name = os.path.dirname(os.path.abspath(__file__))
 
 class Emitter(nn.Module):
     """
@@ -313,37 +318,34 @@ class DMM(nn.Module):
                 # so keep track of it
                 z_prev = z_t
 
-
-# setup, training, and evaluation
-def main(idx,a,s,config):
+ 
+def main(idx,data,config):
+    '''setup, training, and evaluation'''
     # setup logging
-    logging.basicConfig(
-        level=logging.DEBUG, format="%(message)s", filename='{}.log'.format(config["id"]), filemode="w"
-    )
+    logging.basicConfig(level=logging.DEBUG, format="%(message)s", filename='{}.log'.format(config["id"]), filemode="w")
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
     logging.getLogger("").addHandler(console)
     logging.info(config)
 
-    data = [] #TODO load data 
+    values = data.data
+    # plot features as time series
+    utils.plot_features(idx, values)
+    # set up model 0 LSTM s.t (s_t|s_{t-1},a_{t-1})
+    model_0 = LSTM.get_model(values)
 
-    training_seq_lengths = data["train"]["sequence_lengths"]
-    training_data_sequences = data["train"]["sequences"]
-    test_seq_lengths = data["test"]["sequence_lengths"]
-    test_data_sequences = data["test"]["sequences"]
-    val_seq_lengths = data["valid"]["sequence_lengths"]
-    val_data_sequences = data["valid"]["sequences"]
+
+    training_seq_lengths = torch.ones(train_X.shape[0])    
+    training_data_sequences = torch.tensor(train_X)        
+    test_seq_lengths = torch.ones(test_X.shape[0]) 
+    test_data_sequences = torch.tensor(test_X)
+    val_seq_lengths = torch.ones(val_X.shape[0]) 
+    val_data_sequences = torch.tensor(val_X)
     N_train_data = len(training_seq_lengths)
     N_train_time_slices = float(torch.sum(training_seq_lengths))
-    N_mini_batches = int(
-        N_train_data / config['config']['mini_batch_size']
-        + int(N_train_data % config['config']['mini_batch_size'] > 0)
-    )
+    N_mini_batches = int(N_train_data / config['config']['mini_batch_size'] + int(N_train_data % config['config']['mini_batch_size'] > 0))
 
-    logging.info(
-        "N_train_data: %d     avg. training seq. length: %.2f    N_mini_batches: %d"
-        % (N_train_data, training_seq_lengths.float().mean(), N_mini_batches)
-    )
+    logging.info("N_train_data: %d     avg. training seq. length: %.2f    N_mini_batches: %d" % (N_train_data, training_seq_lengths.float().mean(), N_mini_batches))
 
     # how often we do validation/test evaluation during training
     val_test_frequency = config['config']['val_test_frequency']
@@ -353,50 +355,27 @@ def main(idx,a,s,config):
     # package repeated copies of val/test data for faster evaluation
     # (i.e. set us up for vectorization)
     def rep(x):
+        print('x type? ', x)
         rep_shape = torch.Size([x.size(0) * n_eval_samples]) + x.size()[1:]
         repeat_dims = [1] * len(x.size())
         repeat_dims[0] = n_eval_samples
-        return (
-            x.repeat(repeat_dims)
-            .reshape(n_eval_samples, -1)
-            .transpose(1, 0)
-            .reshape(rep_shape)
-        )
+        return (x.repeat(repeat_dims).reshape(n_eval_samples, -1).transpose(1, 0).reshape(rep_shape))
 
     # get the validation/test data ready for the dmm: pack into sequences, etc.
     val_seq_lengths = rep(val_seq_lengths)
     test_seq_lengths = rep(test_seq_lengths)
-    (
-        val_batch,
-        val_batch_reversed,
-        val_batch_mask,
-        val_seq_lengths,
-    ) = poly.get_mini_batch(
-        torch.arange(n_eval_samples * val_data_sequences.shape[0]),
-        rep(val_data_sequences),
-        val_seq_lengths,
-        cuda=args.cuda,
-    )
-    (
-        test_batch,
-        test_batch_reversed,
-        test_batch_mask,
-        test_seq_lengths,
-    ) = poly.get_mini_batch(
-        torch.arange(n_eval_samples * test_data_sequences.shape[0]),
-        rep(test_data_sequences),
-        test_seq_lengths,
-        cuda=args.cuda,
-    )
+    (val_batch,val_batch_reversed,val_batch_mask,val_seq_lengths,) = utils.get_mini_batch(
+        torch.arange(n_eval_samples * val_data_sequences.shape[0]), rep(val_data_sequences), val_seq_lengths)
+    (test_batch,test_batch_reversed,test_batch_mask,test_seq_lengths) = utils.get_mini_batch(
+        torch.arange(n_eval_samples * test_data_sequences.shape[0]), rep(test_data_sequences), test_seq_lengths)
 
     # instantiate the dmm
     dmm = DMM(
         rnn_dropout_rate=args.rnn_dropout_rate,
         num_iafs=args.num_iafs,
         iaf_dim=args.iaf_dim,
-        use_cuda=args.cuda,
-    )
-    
+        use_cuda=args.cuda)
+
     adam = ClippedAdam(config["optimizer"])
 
     # setup inference algorithm
@@ -454,8 +433,7 @@ def main(idx,a,s,config):
             min_af = args.minimum_annealing_factor
             annealing_factor = min_af + (1.0 - min_af) * (
                 float(which_mini_batch + epoch * N_mini_batches + 1)
-                / float(args.annealing_epochs * N_mini_batches)
-            )
+                / float(args.annealing_epochs * N_mini_batches))
         else:
             # by default the KL annealing factor is unity
             annealing_factor = 1.0
@@ -463,8 +441,7 @@ def main(idx,a,s,config):
         # compute which sequences in the training set we should grab
         mini_batch_start = which_mini_batch * args.mini_batch_size
         mini_batch_end = np.min(
-            [(which_mini_batch + 1) * args.mini_batch_size, N_train_data]
-        )
+            [(which_mini_batch + 1) * args.mini_batch_size, N_train_data])
         mini_batch_indices = shuffled_indices[mini_batch_start:mini_batch_end]
         # grab a fully prepped mini-batch using the helper function in the data loader
         (
@@ -556,10 +533,11 @@ if __name__ == "__main__":
     print('Loading Data from exp no. {}'.format(args.id)) 
 
     
-    idx, a, s = utils.load_data(args.data_fn)
+    idx, data = utils.load_data(args.data_fn)
+    data = torch.tensor(data)
     config = utils.load_exp_config(args.config)
 
-    main(idx,a,s,config)
+    main(idx,data,config)
 
     
 
