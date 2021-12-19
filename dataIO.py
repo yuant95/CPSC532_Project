@@ -42,7 +42,7 @@ class dataSet:
 
         finalizedData = self.merge_data(downSampledData)
 
-        finalizedData.to_csv(os.path.join(outputPath, "finalizedData.csv"))
+        finalizedData.to_csv(os.path.join(outputPath, "finalizedData2.csv"))
 
     def merge_data(self, data):
         ret = data[0].reset_index().filter(items=dataPackage[0]["dataItems"])
@@ -86,6 +86,6 @@ class sensorData:
 
 # controller1FilePath = os.path.join(DRIVE_TEST_1_FOLDER, CONTROLLER_DATA_NAME)
 
-dataset = dataSet(DRIVE_TEST_3_FOLDER)
+dataset = dataSet(DRIVE_TEST_1_FOLDER)
 
-dataset.serialize(DRIVE_TEST_3_FOLDER)
+dataset.serialize(DRIVE_TEST_1_FOLDER)
