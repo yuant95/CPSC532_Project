@@ -4,8 +4,8 @@
     "device": "cpu",
     "num_chains": 1,
     "num-hidden": 50,
-    "num_samples": 200, 
-    "num_warmup": 100, 
+    "num_samples": 2000, 
+    "num_warmup": 1000, 
     "num_data": 4000
   },
   "LSTM": {

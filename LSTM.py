@@ -67,6 +67,7 @@ def get_model(data):
     # fit network
     history = model.fit(train_X, train_y, epochs=50, batch_size=75, validation_data=(val_X, val_y), verbose=2, shuffle=True)
     #plot loss
+    pyplot.figure(figsize=(8,8))
     pyplot.plot(history.history['loss'], label='E-train')
     pyplot.plot(history.history['val_loss'], label='E-val')
     pyplot.xlabel("Dataset: test")
@@ -91,7 +92,7 @@ def get_model(data):
     rmse = sqrt(mean_squared_error(inv_y, inv_yhat))
     print('Dataset test ')
     print('Test RMSE: %.3f' % rmse)
-    return model
+    return model, train_X, train_y, val_X, val_y, test_X, test_y
 
 
             

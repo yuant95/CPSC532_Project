@@ -23,6 +23,7 @@ from pyro.infer import (
     config_enumerate,
 )
 from pyro.optim import ClippedAdam
+from VRNN import DMM
 
 
 dir_name = os.path.dirname(os.path.abspath(__file__))
@@ -41,7 +42,7 @@ def main(idx,data,config):
     # plot features as time series
     utils.plot_features(idx, values)
     # set up model 0 LSTM s.t (s_t|s_{t-1},a_{t-1})
-    model_0 = LSTM.get_model(values)
+    model_0, train_X, train_y, val_X, val_y, test_X, test_y = LSTM.get_model(values)
     # extract weights, H (internal state), bias  
     W,H,b = LSTM.get_LSTMweights(model_0)
     ps = LSTM.get_dist_parm(model_0)
@@ -51,11 +52,14 @@ def main(idx,data,config):
         print('Weights shape? ', W[key].shape)
 
 
-    MCMC.run_sampler(config, data, len(values), W['o'], H['o'], ps[0])
+    samples, predictions, mean_prediction = MCMC.run_sampler(config, data, len(values), W['o'], H['o'], ps[0])
 
-    
+    print('samples? ', samples)
+    for key in samples:
+        print('key? ', key)
+        print('item shape: ', samples[key].shape)
 
-   
+    print('prediction shape? ', predictions.shape)
 
     training_seq_lengths = torch.ones(train_X.shape[0])    
     training_data_sequences = torch.tensor(train_X)        
@@ -77,7 +81,6 @@ def main(idx,data,config):
     # package repeated copies of val/test data for faster evaluation
     # (i.e. set us up for vectorization)
     def rep(x):
-        print('x type? ', x)
         rep_shape = torch.Size([x.size(0) * n_eval_samples]) + x.size()[1:]
         repeat_dims = [1] * len(x.size())
         repeat_dims[0] = n_eval_samples
@@ -93,10 +96,10 @@ def main(idx,data,config):
 
     # instantiate the dmm
     dmm = DMM(
-        rnn_dropout_rate=args.rnn_dropout_rate,
-        num_iafs=args.num_iafs,
-        iaf_dim=args.iaf_dim,
-        use_cuda=args.cuda)
+        rnn_dropout_rate=config['config']['drop_out_rate'],
+        num_iafs=config['config']['num_iafs'],
+        iaf_dim=config['config']['iaf_dim'],
+        use_cuda=config['config']['cuda'])
 
     adam = ClippedAdam(config["optimizer"])
 
