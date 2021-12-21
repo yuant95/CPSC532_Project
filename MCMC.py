@@ -25,7 +25,8 @@ from sklearn.preprocessing import MinMaxScaler
 
 matplotlib.use("Agg")  # noqa: E402
 
-scalerTest = MinMaxScaler()
+dir_name = os.path.dirname(os.path.abspath(__file__))
+
 # the non-linearity we use in our neural network
 def nonlin(x):
     return jnp.tanh(x)
@@ -75,7 +76,6 @@ def run_inference(model, config, rng_key, X, Y, D_H, D_Y, i_prior,o_prior, ps_pr
     mcmc = MCMC(kernel,num_warmup=config['num_warmup'],num_samples=config['num_samples'],
         num_chains=config['num_chains'], progress_bar=False if "NUMPYRO_SPHINXBUILD" in os.environ else True,)
     mcmc.run(rng_key, X, Y, D_H, D_Y, i_prior,o_prior, ps_prior)
-    mcmc.print_summary()
     print("\nMCMC elapsed time:", time.time() - start)
     return mcmc.get_samples()
 
@@ -85,87 +85,6 @@ def predict(model, rng_key, samples, X, D_H, D_Y, i_prior,o_prior, ps_prior):
     # note that Y will be sampled in the model because we pass Y=None here
     model_trace = handlers.trace(model).get_trace(X=X, Y=None, D_H=D_H, D_Y=D_Y,i_prior=i_prior,o_prior=o_prior,ps_prior=ps_prior)
     return model_trace["Y"]["value"]
-
-def predict_seires(model, rng_key, samples, X, D_H, D_Y):
-    model = handlers.substitute(handlers.seed(model, rng_key), samples)
-    # note that Y will be sampled in the model because we pass Y=None here
-    X0 = X[0]
-    X0 = X0[np.newaxis, :]
-    model_trace0 = handlers.trace(model).get_trace(X=X0, Y=None, D_H=D_H, D_Y = D_Y)
-    Y_t = jnp.mean(model_trace0["Y"]["value"].val, axis=0)
-    ret = Y_t
-
-    for i in range(1, len(X)):
-        control = X[i, 4:6]
-        X_t = jnp.append(Y_t, control)[np.newaxis, :]
-        model_trace = handlers.trace(model).get_trace(X=X_t, Y=None, D_H=D_H, D_Y = D_Y)
-        Y_t = jnp.mean(model_trace["Y"]["value"].val, axis=0)
-        ret = jnp.concatenate([ret, Y_t])
-
-
-    return ret
-
-# Note: Current it's using test 1 as training, and test 2 as test data
-# Only using ROBOT_POSE_DATA_ITEMS and CONTROLLER_DATA_ITEMS
-def read_data(N=100, N_test=10):
-    # To get rid of some noisy set up phase data
-    offset = 200
-    N += offset
-    finalizedDataPath = os.path.join(DRIVE_TEST_1_FOLDER, "finalizedData2.csv")
-    testDataPath = os.path.join(DRIVE_TEST_2_FOLDER, "finalizedData.csv")
-    data = pd.read_csv(finalizedDataPath)
-    testData = pd.read_csv(testDataPath)
-
-    # Normalize the data
-    scaler = MinMaxScaler()
-
-    data[data.columns] = scaler.fit_transform(data)
-    testData[testData.columns] = scalerTest.fit_transform(testData)
-
-    X = jnp.array(data.loc[offset:N-1, ROBOT_POSE_DATA_ITEMS+CONTROLLER_DATA_ITEMS].to_numpy())
-    Y = jnp.array(data.loc[offset+1:N,ROBOT_POSE_DATA_ITEMS].to_numpy())
-
-    X_test = jnp.array(testData.loc[offset:offset+N_test, ROBOT_POSE_DATA_ITEMS+CONTROLLER_DATA_ITEMS].to_numpy())
-    Y_test_truth = jnp.array(testData.loc[offset+1:offset+N_test+1, ROBOT_POSE_DATA_ITEMS].to_numpy())
-
-    return X, Y, X_test, Y_test_truth
-
-def plot_result(X,Y,X_test,predictions, xDim, yDim, prefix = ""):
-    xName = ALL_DATA[xDim]
-    yName = STATE_ITEMS[yDim]
-
-    mean_prediction = jnp.mean(predictions, axis=0)
-    percentiles = np.percentile(predictions, [5.0, 95.0], axis=0)
-
-    # make plots
-    plt.clf()
-    fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
-
-    # plot training data
-    ax.plot(X[:, xDim], Y[:, yDim], "kx")
-    # plot 90% confidence level of predictions
-    # ax.fill_between(
-    #     X_test[:, xDim], percentiles[0, :, yDim], percentiles[1, :, yDim], color="lightblue"
-    # )
-    # plot mean prediction
-    ax.plot(X_test[:, xDim], mean_prediction[:,yDim], "bo")#, ls="solid", lw=2.0)
-    ax.set(xlabel="X_{}".format(xName), ylabel="Y_{}".format(yName), title="Mean predictions with 90% CI")
-
-    plt.savefig("{}_bnn_plot_x{}_y{}.png".format(prefix, xName, yName))
-
-    plt.close(fig)
-    plt.clf()
-
-    # No prediction
-    fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
-
-    # plot training data
-    ax.plot(X[:, xDim], Y[:, yDim], "kx")
-
-    ax.set(xlabel="X_{}".format(xName), ylabel="Y_{}".format(yName), title="{} Mean predictions with 90% CI".format(prefix))
-
-    plt.savefig("{}_data_x{}_y{}.png".format(prefix, xName, yName))
-    plt.close(fig)
 
 def run_sampler(config, data, N, i_prior, o_prior, ps_prior):
 
@@ -187,8 +106,6 @@ def run_sampler(config, data, N, i_prior, o_prior, ps_prior):
     rng_key, rng_key_predict = random.split(random.PRNGKey(0))
     samples = run_inference(model, config['mcmc'], rng_key, train_X, train_y, D_H, D_Y, i_prior,o_prior, ps_prior)
 
-    print('samples? ', samples)
-
     # predict Y_test at inputs X_test
     vmap_args = (
         samples,
@@ -200,35 +117,28 @@ def run_sampler(config, data, N, i_prior, o_prior, ps_prior):
 
     mean_prediction = jnp.mean(predictions, axis=0)
 
-    # series_predictions = vmap(
-    #     lambda samples, rng_key: predict_seires(model, rng_key, samples, X_test, D_H, D_Y)
-    # )(*vmap_args)
+    with open("results/mean_prediction.json", "w") as f:
+        import json
+        json.dump(np.array(mean_prediction).tolist(), f)
 
-    # series_predictions = jnp.mean(series_predictions, axis=0)
-    mean_prediction = jnp.mean(predictions, axis=0)
+    with open("results/groundTruth.json", "w") as f:
+        json.dump(np.array(test_y).tolist(), f)
 
-    # with open("mean_prediction.json", "w") as f:
-    #     import json
-    #     json.dump(np.array(mean_prediction).tolist(), f)
-
-    # with open("groundTruth.json", "w") as f:
-    #     json.dump(np.array(test_y).tolist(), f)
-
-    # for i in range(D_X):
-    #     for j in range(D_Y):
-    #         prefix = "{}data_{}hidden_".format(N, D_H)
-    #         plot_result(train_X,train_y,test_X,predictions,i, j, prefix)
 
     prefix = "{}data_{}hidden_".format(N, D_H)
     # Plot trajectory comparison figure
-    fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
+    fig, ax = plt.subplots(figsize=(10, 8), constrained_layout=True)
 
     # plot ground truth
-    ax.plot(test_y[:,-7], test_y[:,-6], "kx")
+    ax.plot(test_y[:,-7], test_y[:,-6], "kx", label='ground truth')
 
     # plot prediction
-    ax.plot(mean_prediction[:,-7], mean_prediction[:,-6], "bo")
+    ax.plot(mean_prediction[:,-7], mean_prediction[:,-6], '.', label='prediction', color='firebrick')
 
-    ax.set(xlabel="X_{}".format("pose.position.x"), ylabel="Y_{}".format("pose.position.y"), title="Mean predictions with 90% CI")
+    ax.set(xlabel='X position', ylabel='Y position', title="BNN Ground Truth vs Prediction")
+    ax.legend()
 
-    plt.savefig("{}_comparison.png".format(prefix))
+    plt.savefig("{}/figures/BNN_comparison.png".format(dir_name))
+    plt.cla()
+
+    return samples, predictions, mean_prediction

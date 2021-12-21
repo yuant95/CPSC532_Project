@@ -3,7 +3,8 @@ import os, csv, torch, json, copy
 import torch.nn as nn
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 dir_name = os.path.dirname(os.path.abspath(__file__))
 
@@ -57,24 +58,34 @@ def get_mini_batch(mini_batch_indices, sequences, seq_lengths, cuda=False):
     return mini_batch, mini_batch_reversed, mini_batch_mask, sorted_seq_lengths
 
 def plot_features(idx,values):
-	# specify columns to plot
-	i = 1
     # plot each column
-	pyplot.figure()
-	axis = None
-	for feature in idx:    
-		if axis is None:
-			axis = pyplot.subplot(len(idx), 1, i)
-			pyplot.setp(axis.get_yticklabels(), fontsize=5)
-		else: 
-			subaxis = pyplot.subplot(len(idx), 1, i, sharex=axis) 
-			pyplot.setp(subaxis.get_xticklabels(), visible=False)
-			pyplot.setp(subaxis.get_yticklabels(), fontsize=5)
-		pyplot.plot(values[:, idx[feature]])
-		pyplot.title(feature, y=0.5, loc='right', fontsize=6)
-		i += 1
-		pyplot.savefig('{}/figures/features_{}'.format(dir_name,feature.replace('.','_')))
-		pyplot.clf()
+	fig, axis = plt.subplots(7, figsize=(20, 14), sharex=True, dpi=100)
+	fig.suptitle('Feature Distribution', fontsize=28)
+	#plt.setp(axis.get_yticklabels(), fontsize=5)
+	 
+	for feature in idx: 
+		i = None
+		if idx[feature] < 2:
+			i = 0
+		elif idx[feature] < 5: 
+			i = 1
+		elif idx[feature] < 8: 
+			i = 2
+		elif idx[feature] < 11:
+			i = 3
+		elif idx[feature] < 13:
+			i = 4
+		elif idx[feature] < 16:
+			i = 5
+		else:
+			i = 6 
+
+		plt.setp(axis[i].get_yticklabels(), fontsize=12)
+		sns.lineplot(data=values[:, idx[feature]], ax=axis[i],label=feature, lw=0.6)
+		plt.setp(axis[i].get_legend().get_texts(), fontsize=13)
+		
+	plt.savefig('{}/figures/features_test'.format(dir_name))
+	plt.cla()
 
 def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
 	n_vars = 1 if type(data) is list else data.shape[1]
