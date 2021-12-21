@@ -35,7 +35,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 matplotlib.use("Agg")  # noqa: E402
 
-
+scalerTest = MinMaxScaler()
 # the non-linearity we use in our neural network
 def nonlin(x):
     return jnp.tanh(x)
@@ -94,13 +94,31 @@ def run_inference(model, args, rng_key, X, Y, D_H, D_Y):
     print("\nMCMC elapsed time:", time.time() - start)
     return mcmc.get_samples()
 
-
 # helper function for prediction
 def predict(model, rng_key, samples, X, D_H, D_Y):
     model = handlers.substitute(handlers.seed(model, rng_key), samples)
     # note that Y will be sampled in the model because we pass Y=None here
     model_trace = handlers.trace(model).get_trace(X=X, Y=None, D_H=D_H, D_Y = D_Y)
     return model_trace["Y"]["value"]
+
+def predict_seires(model, rng_key, samples, X, D_H, D_Y):
+    model = handlers.substitute(handlers.seed(model, rng_key), samples)
+    # note that Y will be sampled in the model because we pass Y=None here
+    X0 = X[0]
+    X0 = X0[np.newaxis, :]
+    model_trace0 = handlers.trace(model).get_trace(X=X0, Y=None, D_H=D_H, D_Y = D_Y)
+    Y_t = jnp.mean(model_trace0["Y"]["value"].val, axis=0)
+    ret = Y_t
+
+    for i in range(1, len(X)):
+        control = X[i, 4:6]
+        X_t = jnp.append(Y_t, control)[np.newaxis, :]
+        model_trace = handlers.trace(model).get_trace(X=X_t, Y=None, D_H=D_H, D_Y = D_Y)
+        Y_t = jnp.mean(model_trace["Y"]["value"].val, axis=0)
+        ret = jnp.concatenate([ret, Y_t])
+
+
+    return ret
 
 # Note: Current it's using test 1 as training, and test 2 as test data
 # Only using ROBOT_POSE_DATA_ITEMS and CONTROLLER_DATA_ITEMS
@@ -117,7 +135,7 @@ def read_data(N=100, N_test=10):
     scaler = MinMaxScaler()
 
     data[data.columns] = scaler.fit_transform(data)
-    testData[testData.columns] = scaler.fit_transform(testData)
+    testData[testData.columns] = scalerTest.fit_transform(testData)
 
     X = jnp.array(data.loc[offset:N-1, ROBOT_POSE_DATA_ITEMS+CONTROLLER_DATA_ITEMS].to_numpy())
     Y = jnp.array(data.loc[offset+1:N,ROBOT_POSE_DATA_ITEMS].to_numpy())
@@ -186,6 +204,13 @@ def main(args):
 
     mean_prediction = jnp.mean(predictions, axis=0)
 
+    # series_predictions = vmap(
+    #     lambda samples, rng_key: predict_seires(model, rng_key, samples, X_test, D_H, D_Y)
+    # )(*vmap_args)
+
+    # series_predictions = jnp.mean(series_predictions, axis=0)
+    mean_prediction = jnp.mean(predictions, axis=0)
+
     with open("mean_prediction.json", "w") as f:
         import json
         json.dump(np.array(mean_prediction).tolist(), f)
@@ -218,7 +243,7 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--num-samples", nargs="?", default=2000, type=int)
     parser.add_argument("--num-warmup", nargs="?", default=1000, type=int)
     parser.add_argument("--num-chains", nargs="?", default=1, type=int)
-    parser.add_argument("--num-data", nargs="?", default=4000, type=int)
+    parser.add_argument("--num-data", nargs="?", default=3000, type=int)
     parser.add_argument("--num-hidden", nargs="?", default=7, type=int)
     parser.add_argument("--device", default="cpu", type=str, help='use "cpu" or "gpu".')
     args = parser.parse_args()
