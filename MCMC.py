@@ -83,7 +83,7 @@ def run_inference(model, config, rng_key, X, Y, D_H, D_Y, i_prior,o_prior, ps_pr
 def predict(model, rng_key, samples, X, D_H, D_Y, i_prior,o_prior, ps_prior):
     model = handlers.substitute(handlers.seed(model, rng_key), samples)
     # note that Y will be sampled in the model because we pass Y=None here
-    model_trace = handlers.trace(model).get_trace(X=X, Y=None, D_H=D_H, D_Y = D_Y)
+    model_trace = handlers.trace(model).get_trace(X=X, Y=None, D_H=D_H, D_Y=D_Y,i_prior=i_prior,o_prior=o_prior,ps_prior=ps_prior)
     return model_trace["Y"]["value"]
 
 def predict_seires(model, rng_key, samples, X, D_H, D_Y):
