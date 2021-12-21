@@ -131,8 +131,8 @@ def read_data(N=100, N_test=10):
     return X, Y, X_test, Y_test_truth
 
 def plot_result(X,Y,X_test,predictions, xDim, yDim, prefix = ""):
-    xName = (ROBOT_POSE_DATA_ITEMS+CONTROLLER_DATA_ITEMS)[xDim]
-    yName = ROBOT_POSE_DATA_ITEMS[yDim]
+    xName = ALL_DATA[xDim]
+    yName = STATE_ITEMS[yDim]
 
     mean_prediction = jnp.mean(predictions, axis=0)
     percentiles = np.percentile(predictions, [5.0, 95.0], axis=0)
@@ -207,26 +207,27 @@ def run_sampler(config, data, N, i_prior, o_prior, ps_prior):
     # series_predictions = jnp.mean(series_predictions, axis=0)
     mean_prediction = jnp.mean(predictions, axis=0)
 
-    with open("mean_prediction.json", "w") as f:
-        import json
-        json.dump(np.array(mean_prediction).tolist(), f)
+    # with open("mean_prediction.json", "w") as f:
+    #     import json
+    #     json.dump(np.array(mean_prediction).tolist(), f)
 
-    with open("groundTruth.json", "w") as f:
-        json.dump(np.array(test_y).tolist(), f)
+    # with open("groundTruth.json", "w") as f:
+    #     json.dump(np.array(test_y).tolist(), f)
 
-    for i in range(D_X):
-        for j in range(D_Y):
-            prefix = "{}data_{}hidden_".format(N, D_H)
-            plot_result(train_X,train_y,test_X,predictions,i, j, prefix)
+    # for i in range(D_X):
+    #     for j in range(D_Y):
+    #         prefix = "{}data_{}hidden_".format(N, D_H)
+    #         plot_result(train_X,train_y,test_X,predictions,i, j, prefix)
 
+    prefix = "{}data_{}hidden_".format(N, D_H)
     # Plot trajectory comparison figure
     fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
 
     # plot ground truth
-    ax.plot(test_y[:,-4], test_y[:,-3], "kx")
+    ax.plot(test_y[:,-7], test_y[:,-6], "kx")
 
     # plot prediction
-    ax.plot(mean_prediction[:,-4], mean_prediction[:,-3], "bo")
+    ax.plot(mean_prediction[:,-7], mean_prediction[:,-6], "bo")
 
     ax.set(xlabel="X_{}".format("pose.position.x"), ylabel="Y_{}".format("pose.position.y"), title="Mean predictions with 90% CI")
 
