@@ -1,5 +1,16 @@
 {
   "id":"test",
+  "mcmc": {
+    "device": "cpu",
+    "num_chains": 1,
+    "num-hidden": 50,
+    "num_samples": 200, 
+    "num_warmup": 100, 
+    "num_data": 4000
+  },
+  "LSTM": {
+    "hidden_units": 50
+  },
   "config": {
     "num_steps":1001,
     "mini_batch_size":20,

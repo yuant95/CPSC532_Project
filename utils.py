@@ -116,6 +116,16 @@ def prep_data(data, output_dim):
 	test_X = test_X.reshape((test_X.shape[0], 1, test_X.shape[1]))
 	return (train_X,train_y,val_X,val_y,test_X,test_y)
 
+def prep_data_mcmc(data, output_dim):
+	values = data.to_numpy()
+	split_idx = round(len(data) * 0.85)
+	train = values[:split_idx, :]
+	test = values[split_idx:, :]
+	# split into input and outputs
+	train_X, train_y = train[:, :20], train[:, -output_dim:]
+	test_X, test_y = test[:, :20], test[:, -output_dim:]
+	return (train_X,train_y,test_X,test_y)
+
 
 def get_split_idx(data):
 	n = len(data)

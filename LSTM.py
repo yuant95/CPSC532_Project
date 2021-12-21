@@ -13,6 +13,41 @@ from sklearn.preprocessing import MinMaxScaler
 dir_name = os.path.dirname(os.path.abspath(__file__))
 
 
+def get_LSTM_UWb(weight):
+    '''
+    weight must be output of LSTM's layer.get_weights()
+    W: weights for input
+    U: weights for hidden states
+    b: bias
+    '''
+    warr,uarr, barr = weight
+    gates = ["i","f","c","o"]
+    hunit = uarr.shape[0]
+    U, W, b = {},{},{}
+    for i1,i2 in enumerate(range(0,len(barr),hunit)):
+        
+        W[gates[i1]] = warr[:,i2:i2+hunit]
+        U[gates[i1]] = uarr[:,i2:i2+hunit]
+        b[gates[i1]] = barr[i2:i2+hunit].reshape(hunit,1)
+    return(W,U,b)
+
+def get_LSTMweights(model1):
+    for layer in model1.layers:
+        if "LSTM" in str(layer):
+            w = layer.get_weights()
+            W,U,b = get_LSTM_UWb(w)
+            break
+    return W,U,b
+
+def get_dist_parm(model):
+    for layer in model.layers:
+        if "Dense" in str(layer):
+            w = layer.get_weights()
+            print(w[0].shape)
+            break
+    return w
+
+
 def get_model(data):
     values = data
     output_dim = 18
@@ -26,6 +61,8 @@ def get_model(data):
     model = Sequential()
     model.add(LSTM(50, input_shape=(train_X.shape[1], train_X.shape[2])))
     model.add(Dense(18))
+
+    # distribution_outputs = Lambda(negative_binomial_layer)(outputs)
     model.compile(loss='mae', optimizer='adam')
     # fit network
     history = model.fit(train_X, train_y, epochs=50, batch_size=75, validation_data=(val_X, val_y), verbose=2, shuffle=True)

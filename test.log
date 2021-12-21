@@ -1,4 +1,4 @@
-{'id': 'test', 'config': {'num_steps': 1001, 'mini_batch_size': 20, 'drop_out_rate': 0.1, 'val_test_frequency': 50, 'n_eval_samples': 1, 'num_iafs': 0, 'iaf_dim': 100, 'cuda': 'True'}, 'optimizer': {'args': {'lr': 0.01, 'b1': 0.96, 'b2': 0.999, 'clip_norm': 10.0, 'lrd': 0.99996, 'weight_decay': 2.0}, 'type': 'adam'}}
+{'id': 'test', 'mcmc': {'device': 'cpu', 'num_chains': 1, 'num-hidden': 50, 'num_samples': 200, 'num_warmup': 100, 'num_data': 4000}, 'LSTM': {'hidden_units': 50}, 'config': {'num_steps': 1001, 'mini_batch_size': 20, 'drop_out_rate': 0.1, 'val_test_frequency': 50, 'n_eval_samples': 1, 'num_iafs': 0, 'iaf_dim': 100, 'cuda': 'True'}, 'optimizer': {'args': {'lr': 0.01, 'b1': 0.96, 'b2': 0.999, 'clip_norm': 10.0, 'lrd': 0.99996, 'weight_decay': 2.0}, 'type': 'adam'}}
 title position was updated manually, not adjusting
 findfont: Matching sans\-serif:style=normal:variant=normal:weight=normal:stretch=normal:size=10.0.
 findfont: score(<Font 'STIXNonUnicode' (STIXNonUniIta.ttf) italic normal 400 normal>) = 11.05
@@ -2391,3 +2391,25 @@ title position was updated manually, not adjusting
 title position was updated manually, not adjusting
 title position was updated manually, not adjusting
 title position was updated manually, not adjusting
+Initializing backend 'interpreter'
+Backend 'interpreter' initialized
+Initializing backend 'cpu'
+Backend 'cpu' initialized
+Initializing backend 'tpu_driver'
+Starting the local TPU driver.
+Unable to initialize backend 'tpu_driver': Not found: Unable to find driver in registry given worker: local://
+Initializing backend 'gpu'
+Unable to initialize backend 'gpu': Not found: Could not find registered platform with name: "cuda". Available platform names are: Host Interpreter
+Initializing backend 'tpu'
+Unable to initialize backend 'tpu': Invalid argument: TpuPlatform is not available.
+Compiling _split (139747505460424) for args (ShapedArray(uint32[2]),).
+Compiling _uniform (139747505596672) for args (ShapedArray(uint32[2]), ShapedArray(int32[], weak_type=True), ShapedArray(int32[], weak_type=True)).
+Compiling _uniform (139747504579496) for args (ShapedArray(uint32[2]), ShapedArray(int32[], weak_type=True), ShapedArray(int32[], weak_type=True)).
+Compiling _uniform (139747504243912) for args (ShapedArray(uint32[2]), ShapedArray(int32[], weak_type=True), ShapedArray(int32[], weak_type=True)).
+Compiling _uniform (139747504076984) for args (ShapedArray(uint32[2]), ShapedArray(int32[], weak_type=True), ShapedArray(int32[], weak_type=True)).
+Compiling _split (139747036795240) for args (ShapedArray(uint32[2]),).
+Compiling _split (139747504625344) for args (ShapedArray(uint32[2]),).
+Compiling _normal (139747036193920) for args (ShapedArray(uint32[2]),).
+Compiling _body_fn (139747035710160) for args (ShapedArray(int32[], weak_type=True), ShapedArray(int32[]), ShapedArray(float32[]), ShapedArray(float32[20,50]), ShapedArray(float32[50,50]), ShapedArray(float32[50,18]), ShapedArray(float32[]), ShapedArray(float32[20,50]), ShapedArray(float32[50,50]), ShapedArray(float32[50,18]), ShapedArray(float32[]), ShapedArray(float32[]), ShapedArray(float32[]), ShapedArray(float32[4401]), ShapedArray(float32[4401]), ShapedArray(float32[4401]), ShapedArray(float32[]), ShapedArray(float32[]), ShapedArray(float32[]), ShapedArray(int32[]), ShapedArray(float32[]), ShapedArray(float32[4401]), ShapedArray(float32[4401]), ShapedArray(int32[], weak_type=True), ShapedArray(int32[]), ShapedArray(uint32[2]), ShapedArray(uint32[2]), ShapedArray(float32[200,4402]), ShapedArray(int32[], weak_type=True), ShapedArray(int32[], weak_type=True)).
+Compiling <unnamed wrapped function> (139747036504568) for args (ShapedArray(float32[200]), ShapedArray(float32[200,20,50]), ShapedArray(float32[200,50,50]), ShapedArray(float32[200,50,18])).
+Compiling _split (139747034216560) for args (ShapedArray(uint32[2]),).
