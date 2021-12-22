@@ -1,4 +1,5 @@
 import os, csv, torch, json, copy
+from torch._C import dtype
 
 import torch.nn as nn
 import numpy as np
@@ -11,51 +12,59 @@ dir_name = os.path.dirname(os.path.abspath(__file__))
 # this function returns a 0/1 mask that can be used to mask out a mini-batch
 # composed of sequences of length `seq_lengths`
 def get_mini_batch_mask(mini_batch, seq_lengths):
-    mask = torch.zeros(mini_batch.shape[0:2])
-    for b in range(mini_batch.shape[0]):
-        mask[b, 0 : seq_lengths[b]] = torch.ones(seq_lengths[b])
-    return mask
+	mask = torch.zeros(mini_batch.shape[0:2])
+	for b in range(mini_batch.shape[0]):
+		mask[b, 0 : int(seq_lengths[b].item())] = torch.ones(int(seq_lengths[b].item()))
+	return mask
+
+# this function takes the hidden state as output by the PyTorch rnn and
+# unpacks it it; it also reverses each sequence temporally
+def pad_and_reverse(rnn_output, seq_lengths):
+    rnn_output, _ = nn.utils.rnn.pad_packed_sequence(rnn_output, batch_first=True)
+    reversed_output = reverse_sequences(rnn_output, seq_lengths)
+    return reversed_output
 
 # this function takes a torch mini-batch and reverses each sequence
 # (w.r.t. the temporal axis, i.e. axis=1).
 def reverse_sequences(mini_batch, seq_lengths):
-    reversed_mini_batch = torch.zeros_like(mini_batch)
-    for b in range(mini_batch.size(0)):
-        T = seq_lengths[b]
-        time_slice = torch.arange(T - 1, -1, -1, device=mini_batch.device)
-        reversed_sequence = torch.index_select(mini_batch[b, :, :], 0, time_slice)
-        reversed_mini_batch[b, 0:T, :] = reversed_sequence
-    return reversed_mini_batch
+	reversed_mini_batch = torch.zeros_like(mini_batch)
+	for b in range(mini_batch.size(0)):
+		T = seq_lengths[b]
+		time_slice = torch.arange(T - 1, -1, -1, dtype=torch.int64, device=mini_batch.device)
+		reversed_sequence = torch.index_select(mini_batch[b, :, :], 0, time_slice)
+		reversed_mini_batch[b] = reversed_sequence
+	return reversed_mini_batch
 
 def get_mini_batch(mini_batch_indices, sequences, seq_lengths, cuda=False):
 	# get the sequence lengths of the mini-batch
-    seq_lengths = seq_lengths[mini_batch_indices]
+	seq_lengths = seq_lengths[mini_batch_indices]
     # sort the sequence lengths
-    _, sorted_seq_length_indices = torch.sort(seq_lengths)
-    sorted_seq_length_indices = sorted_seq_length_indices.flip(0)
-    sorted_seq_lengths = seq_lengths[sorted_seq_length_indices]
-    sorted_mini_batch_indices = mini_batch_indices[sorted_seq_length_indices]
+	_, sorted_seq_length_indices = torch.sort(seq_lengths)
+	sorted_seq_length_indices = sorted_seq_length_indices.flip(0)
+	sorted_seq_lengths = seq_lengths[sorted_seq_length_indices]
+	sorted_mini_batch_indices = mini_batch_indices[sorted_seq_length_indices]
 
     # compute the length of the longest sequence in the mini-batch
-    T_max = torch.max(seq_lengths)
+	T_max = torch.max(seq_lengths)
     # this is the sorted mini-batch
-    mini_batch = sequences[sorted_mini_batch_indices, 0:T_max, :]
+	mini_batch = sequences[sorted_mini_batch_indices]
+	# mini_batch = torch.index_select(sequences, 0, sorted_mini_batch_indices)
     # this is the sorted mini-batch in reverse temporal order
-    mini_batch_reversed = reverse_sequences(mini_batch, sorted_seq_lengths)
+	mini_batch_reversed = reverse_sequences(mini_batch, sorted_seq_lengths)
     # get mask for mini-batch
-    mini_batch_mask = get_mini_batch_mask(mini_batch, sorted_seq_lengths)
+	mini_batch_mask = get_mini_batch_mask(mini_batch, sorted_seq_lengths)
 
     # cuda() here because need to cuda() before packing
-    if cuda:
-        mini_batch = mini_batch.cuda()
-        mini_batch_mask = mini_batch_mask.cuda()
-        mini_batch_reversed = mini_batch_reversed.cuda()
+	if cuda:
+		mini_batch = mini_batch.cuda()
+		mini_batch_mask = mini_batch_mask.cuda()
+		mini_batch_reversed = mini_batch_reversed.cuda()
 
-    # do sequence packing
-    mini_batch_reversed = nn.utils.rnn.pack_padded_sequence(
+    # do sequence packing	
+	mini_batch_reversed = nn.utils.rnn.pack_padded_sequence(
         mini_batch_reversed, sorted_seq_lengths, batch_first=True)
 
-    return mini_batch, mini_batch_reversed, mini_batch_mask, sorted_seq_lengths
+	return mini_batch, mini_batch_reversed, mini_batch_mask, sorted_seq_lengths
 
 def plot_features(idx,values):
     # plot each column

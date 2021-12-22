@@ -8,9 +8,6 @@ import torch.nn as nn
 from matplotlib import pyplot
 
 
-from os.path import exists
-from pyro.optim import ClippedAdam
-
 import pyro.distributions as dist
 import pyro.poutine as poutine
 from pyro.distributions import TransformedDistribution
@@ -136,16 +133,18 @@ class DMM(nn.Module):
 
     def __init__(
         self,
-        input_dim=88,
-        z_dim=100,
-        emission_dim=100,
+        emitter,trans,comb,
+        input_dim=20,
+        z_dim=50, # maybe num samples?
+        emission_dim=20,
         transition_dim=200,
-        rnn_dim=600,
+        rnn_dim=18,                # n samples 
         num_layers=1,
         rnn_dropout_rate=0.0,
         num_iafs=0,
-        iaf_dim=50,
-        use_cuda=False,
+        iaf_dim=20,
+        use_cuda=True,
+        
     ):
         super().__init__()
         # instantiate PyTorch modules used in the model and guide below
@@ -240,6 +239,7 @@ class DMM(nn.Module):
                     .to_event(1),
                     obs=mini_batch[:, t - 1, :],
                 )
+                print('got here?')
                 # the latent sampled at this time step will be conditioned upon
                 # in the next time step so keep track of it
                 z_prev = z_t
@@ -266,9 +266,9 @@ class DMM(nn.Module):
         ).contiguous()
         # push the observed x's through the rnn;
         # rnn_output contains the hidden state at each time step
-        rnn_output, _ = self.rnn(mini_batch_reversed, h_0_contig)
+        rnn_output, _ = self.rnn(mini_batch_reversed.float().cuda(), h_0_contig.cuda())
         # reverse the time-ordering in the hidden state and un-pack it
-        rnn_output = poly.pad_and_reverse(rnn_output, mini_batch_seq_lengths)
+        rnn_output = utils.pad_and_reverse(rnn_output, mini_batch_seq_lengths.cuda())
         # set z_prev = z_q_0 to setup the recursive conditioning in q(z_t |...)
         z_prev = self.z_q_0.expand(mini_batch.size(0), self.z_q_0.size(0))
 
@@ -302,9 +302,7 @@ class DMM(nn.Module):
                 with pyro.poutine.scale(scale=annealing_factor):
                     if len(self.iafs) > 0:
                         # in output of normalizing flow, all dimensions are correlated (event shape is not empty)
-                        z_t = pyro.sample(
-                            "z_%d" % t, z_dist.mask(mini_batch_mask[:, t - 1])
-                        )
+                        z_t = pyro.sample("z_%d" % t, z_dist.mask(mini_batch_mask[:, t - 1]))
                     else:
                         # when no normalizing flow used, ".to_event(1)" indicates latent dimensions are independent
                         z_t = pyro.sample(

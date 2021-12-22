@@ -1,5 +1,5 @@
 import utils
-import os
+import os, copy
 import numpy as np
 	
 from math import sqrt
@@ -76,6 +76,7 @@ def get_model(data):
     pyplot.clf()
     # make a prediction
     yhat = model.predict(test_X)
+    test_X_shape = copy.deepcopy(test_X)
     print('yhat shape? ', yhat.shape)
     test_X = test_X.reshape((test_X.shape[0], test_X.shape[2]))
     print('test x shape', test_X.shape)
@@ -92,7 +93,7 @@ def get_model(data):
     rmse = sqrt(mean_squared_error(inv_y, inv_yhat))
     print('Dataset test ')
     print('Test RMSE: %.3f' % rmse)
-    return model, train_X, train_y, val_X, val_y, test_X, test_y
+    return model, train_X, train_y, val_X, val_y, test_X_shape, test_y
 
 
             

@@ -1,4 +1,4 @@
-{'id': 'test', 'mcmc': {'device': 'cpu', 'num_chains': 1, 'num-hidden': 50, 'num_samples': 2000, 'num_warmup': 1000, 'num_data': 4000}, 'LSTM': {'hidden_units': 50}, 'config': {'num_steps': 1001, 'mini_batch_size': 20, 'drop_out_rate': 0.1, 'val_test_frequency': 50, 'n_eval_samples': 1, 'num_iafs': 0, 'iaf_dim': 100, 'cuda': 'True'}, 'optimizer': {'args': {'lr': 0.01, 'b1': 0.96, 'b2': 0.999, 'clip_norm': 10.0, 'lrd': 0.99996, 'weight_decay': 2.0}, 'type': 'adam'}}
+{'id': 'test', 'alg': 'tmc', 'load_opt': '', 'load_model': '', 'tmc': {'num_samples': 100}, 'VRNN': {'num_epochs': 50, 'checkpoint_freq': 0, 'annealing_epochs': 0, 'minimum_annealing_factor': 0}, 'mcmc': {'device': 'cpu', 'num_chains': 1, 'num-hidden': 50, 'num_samples': 20, 'num_warmup': 10}, 'LSTM': {'hidden_units': 50}, 'config': {'num_steps': 1001, 'mini_batch_size': 20, 'drop_out_rate': 0.1, 'val_test_frequency': 50, 'n_eval_samples': 1, 'num_iafs': 0, 'iaf_dim': 100, 'cuda': 'False'}, 'optimizer': {'args': {'lr': 0.01, 'b1': 0.96, 'b2': 0.999, 'clip_norm': 10.0, 'lrd': 0.99996, 'weight_decay': 2.0}, 'type': 'adam'}}
 top of axes not in the figure, so title not moved
 findfont: Matching sans\-serif:style=normal:variant=normal:weight=normal:stretch=normal:size=12.0.
 findfont: score(<Font 'STIXNonUnicode' (STIXNonUniIta.ttf) italic normal 400 normal>) = 11.05
@@ -3158,12 +3158,43 @@ Initializing backend 'gpu'
 Unable to initialize backend 'gpu': Not found: Could not find registered platform with name: "cuda". Available platform names are: Interpreter Host
 Initializing backend 'tpu'
 Unable to initialize backend 'tpu': Invalid argument: TpuPlatform is not available.
-Compiling _split (140167670415432) for args (ShapedArray(uint32[2]),).
-Compiling _uniform (140167668115280) for args (ShapedArray(uint32[2]), ShapedArray(int32[], weak_type=True), ShapedArray(int32[], weak_type=True)).
-Compiling _uniform (140167667846312) for args (ShapedArray(uint32[2]), ShapedArray(int32[], weak_type=True), ShapedArray(int32[], weak_type=True)).
-Compiling _uniform (140167668148840) for args (ShapedArray(uint32[2]), ShapedArray(int32[], weak_type=True), ShapedArray(int32[], weak_type=True)).
-Compiling _uniform (140167667970120) for args (ShapedArray(uint32[2]), ShapedArray(int32[], weak_type=True), ShapedArray(int32[], weak_type=True)).
-Compiling _split (140167667786232) for args (ShapedArray(uint32[2]),).
-Compiling _split (140167667583952) for args (ShapedArray(uint32[2]),).
-Compiling _normal (140167267103296) for args (ShapedArray(uint32[2]),).
-Compiling _body_fn (140167265896992) for args (ShapedArray(int32[], weak_type=True), ShapedArray(int32[]), ShapedArray(float32[]), ShapedArray(float32[20,50]), ShapedArray(float32[50,50]), ShapedArray(float32[50,18]), ShapedArray(float32[]), ShapedArray(float32[20,50]), ShapedArray(float32[50,50]), ShapedArray(float32[50,18]), ShapedArray(float32[]), ShapedArray(float32[]), ShapedArray(float32[]), ShapedArray(float32[4401]), ShapedArray(float32[4401]), ShapedArray(float32[4401]), ShapedArray(float32[]), ShapedArray(float32[]), ShapedArray(float32[]), ShapedArray(int32[]), ShapedArray(float32[]), ShapedArray(float32[4401]), ShapedArray(float32[4401]), ShapedArray(int32[], weak_type=True), ShapedArray(int32[]), ShapedArray(uint32[2]), ShapedArray(uint32[2]), ShapedArray(float32[2000,4402]), ShapedArray(int32[], weak_type=True), ShapedArray(int32[], weak_type=True)).
+Compiling _split (140256993477688) for args (ShapedArray(uint32[2]),).
+Compiling _uniform (140256992931776) for args (ShapedArray(uint32[2]), ShapedArray(int32[], weak_type=True), ShapedArray(int32[], weak_type=True)).
+Compiling _uniform (140256992361280) for args (ShapedArray(uint32[2]), ShapedArray(int32[], weak_type=True), ShapedArray(int32[], weak_type=True)).
+Compiling _uniform (140256991770088) for args (ShapedArray(uint32[2]), ShapedArray(int32[], weak_type=True), ShapedArray(int32[], weak_type=True)).
+Compiling _uniform (140256991771528) for args (ShapedArray(uint32[2]), ShapedArray(int32[], weak_type=True), ShapedArray(int32[], weak_type=True)).
+Compiling _split (140256991901160) for args (ShapedArray(uint32[2]),).
+Compiling _split (140256524074872) for args (ShapedArray(uint32[2]),).
+Compiling _normal (140256524346064) for args (ShapedArray(uint32[2]),).
+Compiling _body_fn (140256524018024) for args (ShapedArray(int32[], weak_type=True), ShapedArray(int32[]), ShapedArray(float32[]), ShapedArray(float32[20,50]), ShapedArray(float32[50,50]), ShapedArray(float32[50,18]), ShapedArray(float32[]), ShapedArray(float32[20,50]), ShapedArray(float32[50,50]), ShapedArray(float32[50,18]), ShapedArray(float32[]), ShapedArray(float32[]), ShapedArray(float32[]), ShapedArray(float32[4401]), ShapedArray(float32[4401]), ShapedArray(float32[4401]), ShapedArray(float32[]), ShapedArray(float32[]), ShapedArray(float32[]), ShapedArray(int32[]), ShapedArray(float32[]), ShapedArray(float32[4401]), ShapedArray(float32[4401]), ShapedArray(int32[], weak_type=True), ShapedArray(int32[]), ShapedArray(uint32[2]), ShapedArray(uint32[2]), ShapedArray(float32[20,4402]), ShapedArray(int32[], weak_type=True), ShapedArray(int32[], weak_type=True)).
+Compiling <unnamed wrapped function> (140256522802664) for args (ShapedArray(float32[20]), ShapedArray(float32[20,20,50]), ShapedArray(float32[20,50,50]), ShapedArray(float32[20,50,18])).
+Compiling _split (140256521979440) for args (ShapedArray(uint32[2]),).
+Compiling _split (140256520004304) for args (ShapedArray(uint32[20,2]),).
+Compiling _normal (140256519506896) for args (ShapedArray(uint32[20,2]),).
+Executing constrainedlayout
+LayoutBox: gridspec000000.ss000001.ax000002, (left: 0.000) (bot: 0.000) (right: 0.000) (top: 0.000)
+left 0.053945
+right 0.004167
+bottom 0.059306
+bbox.y0 0.055903
+pos.y0 0.110000
+LayoutBox: gridspec000000.ss000001.ax000002, (left: 0.000) (bot: 0.000) (right: 1.000) (top: 1.000)
+left 0.053945
+right 0.004167
+bottom 0.059306
+bbox.y0 0.005209
+pos.y0 0.059306
+Executing constrainedlayout
+LayoutBox: gridspec000000.ss000001.ax000002, (left: 0.000) (bot: 0.000) (right: 1.000) (top: 1.000)
+left 0.053945
+right 0.004167
+bottom 0.059306
+bbox.y0 0.005209
+pos.y0 0.059306
+LayoutBox: gridspec000000.ss000001.ax000002, (left: 0.000) (bot: 0.000) (right: 1.000) (top: 1.000)
+left 0.053945
+right 0.004167
+bottom 0.059306
+bbox.y0 0.005209
+pos.y0 0.059306
+N_train_data: 5361     avg. training seq. length: 1.00    N_mini_batches: 269
