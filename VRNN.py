@@ -22,29 +22,85 @@ from pyro.infer import (
 )
 from pyro.optim import ClippedAdam
 
+# class Emitter(nn.Module):
+#     """
+#     Parameterizes the bernoulli observation likelihood `p(x_t | z_t)`
+#     """
+
+#     def __init__(self, input_dim, z_dim, emission_dim):
+#         super().__init__()
+#         # initialize the three linear transformations used in the neural network
+#         self.lin_z_to_hidden = nn.Linear(z_dim, emission_dim)
+#         self.lin_hidden_to_hidden = nn.Linear(emission_dim, emission_dim)
+#         self.lin_hidden_to_input = nn.Linear(emission_dim, input_dim)
+#         # initialize the two non-linearities used in the neural network
+#         self.relu = nn.ReLU()
+
+#     def forward(self, z_t):
+#         """
+#         Given the latent z at a particular time step t we return the vector of
+#         probabilities `ps` that parameterizes the bernoulli distribution `p(x_t|z_t)`
+#         """
+#         h1 = self.relu(self.lin_z_to_hidden(z_t))
+#         h2 = self.relu(self.lin_hidden_to_hidden(h1))
+#         ps = torch.sigmoid(self.lin_hidden_to_input(h2))
+#         return ps
+
 class Emitter(nn.Module):
     """
     Parameterizes the bernoulli observation likelihood `p(x_t | z_t)`
     """
 
     def __init__(self, input_dim, z_dim, emission_dim):
+        # super().__init__()
+        # # initialize the three linear transformations used in the neural network
+        # self.lin_z_to_hidden = nn.Linear(z_dim, emission_dim)
+        # self.lin_hidden_to_hidden = nn.Linear(emission_dim, emission_dim)
+        # self.lin_hidden_to_input = nn.Linear(emission_dim, input_dim)
+        # # initialize the two non-linearities used in the neural network
+        # self.relu = nn.ReLU()
+
         super().__init__()
-        # initialize the three linear transformations used in the neural network
-        self.lin_z_to_hidden = nn.Linear(z_dim, emission_dim)
-        self.lin_hidden_to_hidden = nn.Linear(emission_dim, emission_dim)
-        self.lin_hidden_to_input = nn.Linear(emission_dim, input_dim)
-        # initialize the two non-linearities used in the neural network
+        # initialize the six linear transformations used in the neural network
+        self.lin_gate_z_to_hidden = nn.Linear(z_dim, emission_dim)
+        self.lin_gate_hidden_to_input = nn.Linear(emission_dim, input_dim)
+        self.lin_proposed_mean_z_to_hidden = nn.Linear(z_dim, emission_dim)
+        self.lin_proposed_mean_hidden_to_input = nn.Linear(emission_dim, input_dim)
+        self.lin_sig = nn.Linear(input_dim, input_dim)
+        self.lin_z_to_loc = nn.Linear(z_dim, input_dim)
+        # modify the default initialization of lin_z_to_loc
+        # so that it's starts out as the identity function
+        # self.lin_z_to_loc.weight.data = torch.eye(input_dim, z_dim)
+        # self.lin_z_to_loc.bias.data = torch.zeros(input_dim, z_dim)
+        # initialize the three non-linearities used in the neural network
         self.relu = nn.ReLU()
+        self.softplus = nn.Softplus()
 
     def forward(self, z_t):
         """
         Given the latent z at a particular time step t we return the vector of
         probabilities `ps` that parameterizes the bernoulli distribution `p(x_t|z_t)`
         """
-        h1 = self.relu(self.lin_z_to_hidden(z_t))
-        h2 = self.relu(self.lin_hidden_to_hidden(h1))
-        ps = torch.sigmoid(self.lin_hidden_to_input(h2))
-        return ps
+        # h1 = self.relu(self.lin_z_to_hidden(z_t))
+        # h2 = self.relu(self.lin_hidden_to_hidden(h1))
+        # ps = torch.sigmoid(self.lin_hidden_to_input(h2))
+        # return ps
+
+        _gate = self.relu(self.lin_gate_z_to_hidden(z_t))
+        gate = torch.sigmoid(self.lin_gate_hidden_to_input(_gate))
+        # compute the 'proposed mean'
+        _proposed_mean = self.relu(self.lin_proposed_mean_z_to_hidden(z_t))
+        proposed_mean = self.lin_proposed_mean_hidden_to_input(_proposed_mean)
+        # assemble the actual mean used to sample z_t, which mixes a linear transformation
+        # of z_{t-1} with the proposed mean modulated by the gating function
+        loc = (1 - gate) * self.lin_z_to_loc(z_t) + gate * proposed_mean
+        # compute the scale used to sample z_t, using the proposed mean from
+        # above as input the softplus ensures that scale is positive
+        scale = self.softplus(self.lin_sig(self.relu(proposed_mean)))
+        # return loc, scale which can be fed into Normal
+        return loc, scale
+
+
 
 
 class GatedTransition(nn.Module):
@@ -229,12 +285,24 @@ class DMM(nn.Module):
                     )
 
                 # compute the probabilities that parameterize the bernoulli likelihood
-                emission_probs_t = self.emitter(z_t)
+
+                # emission_probs_t = self.emitter(z_t)
+                # # the next statement instructs pyro to observe x_t according to the
+                # # bernoulli distribution p(x_t|z_t)
+                # pyro.sample(
+                #     "obs_x_%d" % t,
+                #     dist.Bernoulli(emission_probs_t)
+                #     .mask(mini_batch_mask[:, t - 1 : t])
+                #     .to_event(1),
+                #     obs=mini_batch[:, t - 1, :],
+                # )
+
+                emission_z_loc, emission_z_scale = self.emitter(z_t)
                 # the next statement instructs pyro to observe x_t according to the
                 # bernoulli distribution p(x_t|z_t)
                 pyro.sample(
                     "obs_x_%d" % t,
-                    dist.Bernoulli(emission_probs_t)
+                    dist.Normal(emission_z_loc, emission_z_scale)
                     .mask(mini_batch_mask[:, t - 1 : t])
                     .to_event(1),
                     obs=mini_batch[:, t - 1, :],

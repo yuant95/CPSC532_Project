@@ -102,6 +102,8 @@ def main(idx,data,config):
         trans=torch.from_numpy(copy.deepcopy(np.asarray(samples['w1']))),
         comb=torch.from_numpy(copy.deepcopy(np.asarray(samples['w3']))))
 
+    dmm = dmm.double()
+
     adam = ClippedAdam(config["optimizer"])
 
     # setup inference algorithm
