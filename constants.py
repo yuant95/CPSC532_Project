@@ -12,7 +12,8 @@ WHEEL_DATA_NAME = "jetRacer_sensor-wheel_data.csv"
 ROBOT_POSE_DATA_NAME = "robot_pose_0.csv"
 
 CONTROLLER_DATA_ITEMS = ["steerAngle","throttle"]
-IMU_DATA_ITEMS = ["accelX","accelY","accelZ","gyroX","gyroY","gyroZ","magX","magY","magZ"]
+# IMU_DATA_ITEMS = ["accelX","accelY","accelZ","gyroX","gyroY","gyroZ","magX","magY","magZ"]
+IMU_DATA_ITEMS = ["accelX","accelY","gyroX","gyroY"]
 WHEEL_DATA_ITEMS = ["fwLeftPos","fwRightPos"]
 ROBOT_POSE_DATA_ITEMS = ["pose.position.x","pose.position.y","pose.orientation.z","pose.orientation.w"]
 

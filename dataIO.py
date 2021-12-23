@@ -86,6 +86,16 @@ class sensorData:
 
 # controller1FilePath = os.path.join(DRIVE_TEST_1_FOLDER, CONTROLLER_DATA_NAME)
 
-dataset = dataSet(DRIVE_TEST_1_FOLDER)
+# dataset = dataSet(DRIVE_TEST_1_FOLDER)
 
-dataset.serialize(DRIVE_TEST_1_FOLDER)
+# dataset.serialize(DRIVE_TEST_1_FOLDER)
+
+with open("mean_prediction.json", "r") as f:
+    import json
+    pre = json.load(f)
+
+with open("groundTruth.json", "r") as f:
+    ground = json.load(f)
+
+import numpy as np
+np.sqrt(np.mean((pre-ground)**2))
