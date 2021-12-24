@@ -371,7 +371,7 @@ class DMM(nn.Module):
                 z_prev = z_t
 
 
-def read_data(N=100, N_test=10):
+def read_data(N, N_test, seqLength):
     # To get rid of some noisy set up phase data
     offset = 200
     N += offset
@@ -391,13 +391,12 @@ def read_data(N=100, N_test=10):
     valData[valData.columns] = scaler.fit_transform(valData)
 
     X = data.loc[offset:N-1, STATE_ITEMS+CONTROLLER_DATA_ITEMS].to_numpy()
-    X_test = testData.loc[offset:offset+N_test-1, STATE_ITEMS+CONTROLLER_DATA_ITEMS].to_numpy()
+    X_test = valData.loc[offset+N_test:offset+N_test+N_test-1, STATE_ITEMS+CONTROLLER_DATA_ITEMS].to_numpy()
     X_val = valData.loc[offset:offset+N_test-1, STATE_ITEMS+CONTROLLER_DATA_ITEMS].to_numpy()
 
-    seq = 4
-    X = X.reshape((int(X.shape[0]/seq), seq, X.shape[1]))
-    X_test = X_test.reshape((int(X_test.shape[0]/seq), seq, X_test.shape[1]))
-    X_val = X_val.reshape((int(X_val.shape[0]/seq), seq, X_val.shape[1]))
+    X = X.reshape((int(X.shape[0]/seqLength), seqLength, X.shape[1]))
+    X_test = X_test.reshape((int(X_test.shape[0]/seqLength), seqLength, X_test.shape[1]))
+    X_val = X_val.reshape((int(X_val.shape[0]/seqLength), seqLength, X_val.shape[1]))
 
     return X, X_val, X_test
 
@@ -425,14 +424,15 @@ def main(args):
     #     N_train_data / args.mini_batch_size
     #     + int(N_train_data % args.mini_batch_size > 0)
     # )
-    train_X, val_X, test_X = read_data(2000, 1000)
+    seqLength = 4
+    train_X, val_X, test_X = read_data(2000, 1000, seqLength)
     config = utils.load_exp_config('test.json')
 
-    training_seq_lengths = 2*torch.ones(train_X.shape[0])    
+    training_seq_lengths = seqLength*torch.ones(train_X.shape[0])    
     training_data_sequences = torch.tensor(train_X)        
-    test_seq_lengths = 2*torch.ones(test_X.shape[0]) 
+    test_seq_lengths = seqLength*torch.ones(test_X.shape[0]) 
     test_data_sequences = torch.tensor(test_X)
-    val_seq_lengths = 2*torch.ones(val_X.shape[0]) 
+    val_seq_lengths = seqLength*torch.ones(val_X.shape[0]) 
     val_data_sequences = torch.tensor(val_X)
     N_train_data = len(training_seq_lengths)
     N_train_time_slices = float(torch.sum(training_seq_lengths))
@@ -629,6 +629,8 @@ def main(args):
     times = [time.time()]
 
     nll = []
+    valNll = []
+    testNll = []
     for epoch in range(args.num_epochs):
         # if specified, save model and optimizer states to disk every checkpoint_freq epochs
         if args.checkpoint_freq > 0 and epoch > 0 and epoch % args.checkpoint_freq == 0:
@@ -660,17 +662,36 @@ def main(args):
             logging.info(
                 "[val/test epoch %04d]  %.4f  %.4f" % (epoch, val_nll, test_nll)
             )
+            valNll.append(val_nll)
+            testNll.append(test_nll)
 
-def plot(data):
+    plot(nll, "Train")
+    plot(valNll, "Train")
+    plot(testNll, "Test")
+
+    nlls = {
+        "train": nll,
+        "val": valNll,
+        "test": testNll,
+
+    }
+
+    with open("nll.json", "w") as f:
+        import json
+        json.dump(nlls, f)
+
+
+
+def plot(data,name):
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(8, 8), constrained_layout=True)
 
     # plot ground truth
     ax.plot(data)
 
-    ax.set(xlabel="Training Steps", ylabel="Train NLL")
+    ax.set(xlabel="Steps", ylabel="{} NLL".format(name))
 
-    plt.savefig("dmm_nll.png")
+    plt.savefig("dmm_{}_nll.png".format(name))
 
 # parse command-line arguments and execute the main method
 if __name__ == "__main__":
