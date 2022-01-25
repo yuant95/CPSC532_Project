@@ -375,7 +375,7 @@ def read_data(N, N_test, seqLength):
     # To get rid of some noisy set up phase data
     offset = 200
     N += offset
-    finalizedDataPath = os.path.join(DRIVE_TEST_1_FOLDER, "finalizedData2.csv")
+    finalizedDataPath = os.path.join(DRIVE_TEST_1_FOLDER, "finalizedData.csv")
     testDataPath = os.path.join(DRIVE_TEST_2_FOLDER, "finalizedData.csv")
     valDataPath = os.path.join(DRIVE_TEST_3_FOLDER, "finalizedData.csv")
 
@@ -391,8 +391,8 @@ def read_data(N, N_test, seqLength):
     valData[valData.columns] = scaler.fit_transform(valData)
 
     X = data.loc[offset:N-1, STATE_ITEMS+CONTROLLER_DATA_ITEMS].to_numpy()
-    X_test = valData.loc[offset+N_test:offset+N_test+N_test-1, STATE_ITEMS+CONTROLLER_DATA_ITEMS].to_numpy()
-    X_val = valData.loc[offset:offset+N_test-1, STATE_ITEMS+CONTROLLER_DATA_ITEMS].to_numpy()
+    X_test = testData.loc[offset+N_test:offset+N_test+N_test-1, STATE_ITEMS+CONTROLLER_DATA_ITEMS].to_numpy()
+    X_val = testData.loc[offset:offset+N_test-1, STATE_ITEMS+CONTROLLER_DATA_ITEMS].to_numpy()
 
     X = X.reshape((int(X.shape[0]/seqLength), seqLength, X.shape[1]))
     X_test = X_test.reshape((int(X_test.shape[0]/seqLength), seqLength, X_test.shape[1]))
@@ -424,8 +424,9 @@ def main(args):
     #     N_train_data / args.mini_batch_size
     #     + int(N_train_data % args.mini_batch_size > 0)
     # )
-    seqLength = 4
+    seqLength = 2
     train_X, val_X, test_X = read_data(2000, 1000, seqLength)
+    train_X = val_X
     config = utils.load_exp_config('test.json')
 
     training_seq_lengths = seqLength*torch.ones(train_X.shape[0])    
